@@ -1,0 +1,1222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>Local Calorie Tracker (Offline)</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root{
+      --bg:#0b0f14; --card:#121826; --muted:#97a3b6; --text:#e7eefc;
+      --accent:#4f8cff; --ok:#39d98a; --warn:#ffcc66; --bad:#ff5c7a;
+      --line:#243044;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1a2a52 0%, transparent 55%),
+                  radial-gradient(900px 500px at 90% 0%, #2a1a52 0%, transparent 50%),
+                  var(--bg);
+      color:var(--text);
+    }
+    header{
+      padding:18px 16px 10px;
+      max-width:1100px; margin:0 auto;
+      display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
+    }
+    header h1{ margin:0; font-size:18px; letter-spacing:0.2px; }
+    header .sub{ color:var(--muted); font-size:12px; margin-top:4px; }
+    .wrap{ max-width:1100px; margin:0 auto; padding:10px 16px 28px; }
+    .grid{ display:grid; gap:12px; grid-template-columns: 1.15fr 1fr; }
+    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 40%), var(--card);
+      border:1px solid rgba(255,255,255,0.06);
+      border-radius:16px;
+      padding:14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    .card h2{
+      margin:0 0 10px; font-size:14px; color:#dce7ff;
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .row > *{ flex:1; min-width:160px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin:8px 0 6px; }
+    input, select, button, textarea{
+      width:100%;
+      padding:10px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.18);
+      color:var(--text);
+      outline:none;
+    }
+    input[type="date"]{ padding:9px 10px; }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(79,140,255,0.65);
+      box-shadow: 0 0 0 3px rgba(79,140,255,0.15);
+    }
+    button{
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,0.12);
+      background: rgba(79,140,255,0.18);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button.primary{
+      background: linear-gradient(180deg, rgba(79,140,255,0.35), rgba(79,140,255,0.18));
+      border-color: rgba(79,140,255,0.6);
+    }
+    button.ghost{ background: rgba(255,255,255,0.04); }
+    button.danger{
+      background: rgba(255,92,122,0.14);
+      border-color: rgba(255,92,122,0.5);
+    }
+    .pill{
+      display:inline-flex; gap:8px; align-items:center;
+      padding:6px 10px; border-radius:999px;
+      background: rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-size:12px;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .pill strong{ color:var(--text); font-weight:650; }
+    .metrics{
+      display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 0;
+    }
+    .hr{ height:1px; background: rgba(255,255,255,0.08); margin:12px 0; border-radius:1px; }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+      overflow:hidden;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.08);
+    }
+    th, td{ padding:9px 10px; border-bottom:1px solid rgba(255,255,255,0.06); text-align:left; }
+    th{ color:var(--muted); font-weight:600; background: rgba(255,255,255,0.03); }
+    tr:last-child td{ border-bottom:none; }
+    .right{ text-align:right; }
+    .muted{ color:var(--muted); }
+    .small{ font-size:12px; }
+    .two-col{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    @media (max-width: 520px){ .two-col{ grid-template-columns:1fr; } }
+    canvas{ width:100%; height:230px; border-radius:14px; border:1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.12); }
+    .inline-btns{ display:flex; gap:8px; flex-wrap:wrap; }
+    .seg{ display:flex; gap:6px; flex-wrap:wrap; }
+    .seg button{ width:auto; padding:8px 10px; border-radius:999px; }
+    .seg button.active{
+      border-color: rgba(79,140,255,0.65);
+      background: rgba(79,140,255,0.20);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Local Calorie Tracker</h1>
+      <div class="sub">Installable • Offline-first • Stored on this device only</div>
+    </div>
+    <div class="metrics" id="topPills"></div>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <!-- LEFT -->
+      <div class="card">
+        <h2>
+          Day log
+          <span class="pill"><span class="muted">Offline:</span> <strong id="offlineState">checking…</strong></span>
+        </h2>
+
+        <div class="row">
+          <div>
+            <label>Date</label>
+            <input id="date" type="date" />
+          </div>
+          <div>
+            <label>Meal type</label>
+            <select id="mealType">
+              <option value="Breakfast">Breakfast</option>
+              <option value="Lunch">Lunch</option>
+              <option value="Dinner">Dinner</option>
+              <option value="Snack">Snack</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Meal / Item name</label>
+            <input id="name" type="text" placeholder="e.g. Chicken thighs + veg" />
+          </div>
+          <div>
+            <label>Barcode (manual)</label>
+            <input id="barcode" type="text" inputmode="numeric" placeholder="e.g. 5012345678901" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Calories (kcal)</label>
+            <input id="cal" type="number" min="0" step="1" placeholder="e.g. 550" />
+          </div>
+          <div>
+            <label>Protein (g)</label>
+            <input id="pro" type="number" min="0" step="0.1" placeholder="e.g. 45" />
+          </div>
+          <div>
+            <label>Carbs (g)</label>
+            <input id="carb" type="number" min="0" step="0.1" placeholder="e.g. 60" />
+          </div>
+          <div>
+            <label>Fat (g)</label>
+            <input id="fat" type="number" min="0" step="0.1" placeholder="e.g. 18" />
+          </div>
+        </div>
+
+        <div class="inline-btns" style="margin-top:10px;">
+          <button class="primary" id="addBtn">Add entry</button>
+          <button class="ghost" id="scanBarcodeBtn">Scan barcode</button>
+          <button class="ghost" id="lookupBarcodeBtn">Lookup barcode</button>
+          <button class="ghost" id="saveBarcodeBtn">Save as barcode item</button>
+          <button class="danger" id="clearDayBtn">Clear this day</button>
+        </div>
+
+        <div id="scannerWrap" class="card" style="margin-top:12px; display:none; padding:12px;">
+          <h2 style="margin-bottom:8px;">Barcode scanner</h2>
+          <div class="small muted" id="scannerMsg">Point camera at a barcode.</div>
+          <div style="margin-top:10px;">
+            <video id="scannerVideo" playsinline muted style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.12);"></video>
+          </div>
+          <div class="inline-btns" style="margin-top:10px;">
+            <button class="ghost" id="stopScanBtn">Stop</button>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <h2>Day totals & compliance</h2>
+        <div class="metrics" id="dayPills"></div>
+
+        <div class="hr"></div>
+
+        <h2>Meal templates</h2>
+        <div class="row">
+          <div>
+            <label>Template name</label>
+            <input id="tplName" type="text" placeholder="e.g. My usual breakfast" />
+          </div>
+          <div>
+            <label>Template meal type</label>
+            <select id="tplMealType">
+              <option value="Breakfast">Breakfast</option>
+              <option value="Lunch">Lunch</option>
+              <option value="Dinner">Dinner</option>
+              <option value="Snack">Snack</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="inline-btns">
+          <button class="primary" id="addToTemplateBtn">Add current item to template</button>
+          <button class="ghost" id="createTemplateBtn">Create empty template</button>
+          <button class="danger" id="clearTemplatesBtn">Clear templates</button>
+        </div>
+        <div class="metrics" id="templatePills" style="margin-top:10px;"></div>
+
+        <div class="hr"></div>
+
+        <h2>Entries</h2>
+        <div class="small muted" id="emptyMsg" style="display:none;">No entries logged for this day yet.</div>
+        <div style="overflow:auto;">
+          <table id="entriesTable" aria-label="Entries table">
+            <thead>
+              <tr>
+                <th>Meal</th>
+                <th>Item</th>
+                <th class="right">kcal</th>
+                <th class="right">P</th>
+                <th class="right">C</th>
+                <th class="right">F</th>
+                <th class="right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="entriesBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="card">
+        <h2>Goals, weekly view, weight trend</h2>
+
+        <div class="two-col">
+          <div>
+            <label>Daily calorie goal (kcal)</label>
+            <input id="goalCal" type="number" min="0" step="1" />
+          </div>
+          <div>
+            <label>Daily protein goal (g)</label>
+            <input id="goalPro" type="number" min="0" step="0.1" />
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div>
+            <label>Daily carbs goal (g)</label>
+            <input id="goalCarb" type="number" min="0" step="0.1" />
+          </div>
+          <div>
+            <label>Daily fat goal (g)</label>
+            <input id="goalFat" type="number" min="0" step="0.1" />
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div>
+            <label>Bodyweight (kg) for selected date</label>
+            <input id="weight" type="number" min="0" step="0.1" placeholder="e.g. 108.0" />
+          </div>
+          <div>
+            <label>Note (optional)</label>
+            <input id="note" type="text" placeholder="e.g. legs day / low sleep" />
+          </div>
+        </div>
+
+        <div class="inline-btns" style="margin-top:10px;">
+          <button class="primary" id="saveWeightBtn">Save weight</button>
+          <button class="ghost" id="saveGoalsBtn">Save goals</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <h2>
+          Weekly averages (last 7 days)
+          <span class="pill"><span class="muted">Rolling weight:</span> <strong id="rollingWeight">—</strong></span>
+        </h2>
+        <div class="metrics" id="weeklyPills"></div>
+
+        <div class="hr"></div>
+
+        <h2>Charts</h2>
+        <div class="seg" style="margin-bottom:10px;">
+          <button id="viewCaloriesBtn" class="active">Calories</button>
+          <button id="viewProteinBtn">Protein</button>
+          <button id="viewMacrosBtn">Macros</button>
+          <button id="viewWeightBtn">Weight</button>
+        </div>
+        <canvas id="chart" width="900" height="340" aria-label="History chart"></canvas>
+        <div class="small muted" style="margin-top:8px;">Tap a date in history to jump to it.</div>
+
+        <div style="overflow:auto; margin-top:10px;">
+          <table aria-label="History table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="right">kcal</th>
+                <th class="right">P</th>
+                <th class="right">C</th>
+                <th class="right">F</th>
+                <th class="right">Weight</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+
+        <div class="hr"></div>
+
+        <h2>Barcode library</h2>
+        <div class="small muted">Manual barcode → stored item. Use “Lookup barcode” then “Add entry”.</div>
+        <div class="metrics" id="barcodePills" style="margin-top:10px;"></div>
+
+        <div class="hr"></div>
+
+        <h2>Backup</h2>
+        <div class="inline-btns">
+          <button class="primary" id="exportBtn">Export JSON</button>
+          <label style="margin:0; flex:1;">
+            <span class="small muted">Import JSON</span>
+            <input id="importFile" type="file" accept="application/json" />
+          </label>
+          <button class="danger" id="wipeAllBtn">Wipe all data</button>
+        </div>
+        <div class="small muted" style="margin-top:8px;">Everything stays on this device unless you export it.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  const KEY = "localCalorieTracker.v2";
+  const todayISO = () => new Date().toISOString().slice(0,10);
+  const round1 = (n) => Math.round(n * 10) / 10;
+  const safeParse = (s, fallback) => { try { return JSON.parse(s); } catch { return fallback; } };
+
+  const defaultState = () => ({
+    settings: { goalCal: 1500, goalPro: 180, goalCarb: 150, goalFat: 60 },
+    entriesByDate: {},
+    weightByDate: {},
+    barcodeItems: {},
+    templates: []
+  });
+
+  let state = load();
+  function load(){
+    const raw = localStorage.getItem(KEY);
+    const st = raw ? safeParse(raw, null) : null;
+    if (st && typeof st === "object"){
+      st.settings ??= { goalCal:1500, goalPro:180, goalCarb:150, goalFat:60 };
+      st.entriesByDate ??= {};
+      st.weightByDate ??= {};
+      st.barcodeItems ??= {};
+      st.templates ??= [];
+      return st;
+    }
+    const fresh = defaultState();
+    localStorage.setItem(KEY, JSON.stringify(fresh));
+    return fresh;
+  }
+  function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+  const $ = (id) => document.getElementById(id);
+
+  const offlineStateEl = $("offlineState");
+
+  const dateEl = $("date");
+  const mealTypeEl = $("mealType");
+  const nameEl = $("name");
+  const barcodeEl = $("barcode");
+  const calEl  = $("cal");
+  const proEl  = $("pro");
+  const carbEl = $("carb");
+  const fatEl  = $("fat");
+
+  const goalCalEl = $("goalCal");
+  const goalProEl = $("goalPro");
+  const goalCarbEl = $("goalCarb");
+  const goalFatEl = $("goalFat");
+
+  const weightEl  = $("weight");
+  const noteEl    = $("note");
+
+  const tplNameEl = $("tplName");
+  const tplMealTypeEl = $("tplMealType");
+
+  const topPills = $("topPills");
+  const dayPills = $("dayPills");
+  const weeklyPills = $("weeklyPills");
+  const rollingWeightEl = $("rollingWeight");
+
+  const entriesBody = $("entriesBody");
+  const emptyMsg = $("emptyMsg");
+
+  const templatePills = $("templatePills");
+  const barcodePills = $("barcodePills");
+  const historyBody = $("historyBody");
+
+  const chart = $("chart");
+  const ctx = chart.getContext("2d");
+
+  const CHART = { mode: "calories" };
+
+  function escapeHtml(s){
+    return String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function pill(label, value, tone=""){
+    const toneStyle = tone === "ok" ? `style="border-color: rgba(57,217,138,0.35);"` :
+                      tone === "warn" ? `style="border-color: rgba(255,204,102,0.45);"` :
+                      tone === "bad" ? `style="border-color: rgba(255,92,122,0.45);"` : "";
+    return `<span class="pill" ${toneStyle}>${label} <strong>${value}</strong></span>`;
+  }
+
+  function getEntries(date){ return state.entriesByDate[date] ? [...state.entriesByDate[date]] : []; }
+  function setEntries(date, entries){ state.entriesByDate[date] = entries; save(); }
+
+  function getDayTotals(date){
+    const entries = getEntries(date);
+    const totals = entries.reduce((acc, e) => {
+      acc.cal += Number(e.cal)||0;
+      acc.pro += Number(e.pro)||0;
+      acc.carb += Number(e.carb)||0;
+      acc.fat += Number(e.fat)||0;
+      return acc;
+    }, { cal:0, pro:0, carb:0, fat:0 });
+
+    totals.cal = Math.round(totals.cal);
+    totals.pro = round1(totals.pro);
+    totals.carb = round1(totals.carb);
+    totals.fat = round1(totals.fat);
+    return totals;
+  }
+
+  function computeCompliancePct(actual, target){
+    if (!target || target <= 0) return 0;
+    return Math.min(130, Math.round((actual / target) * 100));
+  }
+
+  function avg(nums){
+    const xs = nums.filter(n => Number.isFinite(n));
+    if (!xs.length) return 0;
+    return xs.reduce((a,b)=>a+b,0) / xs.length;
+  }
+
+  function lastNDays(n){
+    const out = [];
+    const now = new Date();
+    for (let i=n-1;i>=0;i--){
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      out.push(d.toISOString().slice(0,10));
+    }
+    return out;
+  }
+
+  function movingAverage(series, window=7){
+    const out = [];
+    for (let i=0;i<series.length;i++){
+      const start = Math.max(0, i - window + 1);
+      const chunk = series.slice(start, i+1).filter(v => Number.isFinite(v));
+      out.push(chunk.length ? avg(chunk) : NaN);
+    }
+    return out;
+  }
+
+  function fmt1(v){
+    const n = Number(v);
+    return Number.isFinite(n) ? String(round1(n)) : "";
+  }
+
+  function lookupBarcode(code){
+    const c = String(code ?? "").trim();
+    if (!c) return null;
+    return state.barcodeItems[c] ?? null;
+  }
+
+  function applyItemToFields(item){
+    if (!item) return;
+    nameEl.value = item.label ?? nameEl.value;
+    calEl.value = item.cal ?? "";
+    proEl.value = item.pro ?? "";
+    carbEl.value = item.carb ?? "";
+    fatEl.value = item.fat ?? "";
+  }
+
+  function saveBarcodeItem(){
+    const code = String(barcodeEl.value ?? "").trim();
+    if (!code) return alert("Enter a barcode first.");
+
+    const label = String(nameEl.value ?? "").trim() || "Barcode item";
+    const cal = Number(calEl.value);  const pro = Number(proEl.value);
+    const carb = Number(carbEl.value || 0); const fat = Number(fatEl.value || 0);
+
+    if (!Number.isFinite(cal) || cal < 0) return alert("Calories must be a number.");
+    if (!Number.isFinite(pro) || pro < 0) return alert("Protein must be a number.");
+
+    state.barcodeItems[code] = {
+      label,
+      cal: Math.round(cal),
+      pro: round1(pro),
+      carb: round1(Number.isFinite(carb)?carb:0),
+      fat: round1(Number.isFinite(fat)?fat:0)
+    };
+    save();
+    render();
+    alert("Saved to barcode library.");
+  }
+
+  function getTemplateByName(name, mealType){
+    const n = String(name ?? "").trim().toLowerCase();
+    const m = String(mealType ?? "").trim();
+    return state.templates.find(t => t.name.toLowerCase() === n && t.mealType === m) ?? null;
+  }
+
+  function createEmptyTemplate(){
+    const name = String(tplNameEl.value ?? "").trim();
+    const mealType = tplMealTypeEl.value;
+
+    if (!name) return alert("Enter a template name.");
+    if (getTemplateByName(name, mealType)) return alert("That template already exists for this meal type.");
+
+    state.templates.push({
+      id: crypto.randomUUID(),
+      name,
+      mealType,
+      items: []
+    });
+    save();
+    render();
+    alert("Template created.");
+  }
+
+  function addCurrentItemToTemplate(){
+    const name = String(tplNameEl.value ?? "").trim();
+    const mealType = tplMealTypeEl.value;
+    if (!name) return alert("Enter a template name.");
+    let tpl = getTemplateByName(name, mealType);
+    if (!tpl){
+      tpl = { id: crypto.randomUUID(), name, mealType, items: [] };
+      state.templates.push(tpl);
+    }
+
+    const itemName = String(nameEl.value ?? "").trim();
+    const cal = Number(calEl.value);  const pro = Number(proEl.value);
+    const carb = Number(carbEl.value || 0); const fat = Number(fatEl.value || 0);
+
+    if (!itemName) return alert("Enter an item name to add.");
+    if (!Number.isFinite(cal) || cal < 0) return alert("Calories must be a number.");
+    if (!Number.isFinite(pro) || pro < 0) return alert("Protein must be a number.");
+
+    tpl.items.push({
+      name: itemName,
+      barcode: String(barcodeEl.value ?? "").trim() || "",
+      cal: Math.round(cal),
+      pro: round1(pro),
+      carb: round1(Number.isFinite(carb)?carb:0),
+      fat: round1(Number.isFinite(fat)?fat:0)
+    });
+
+    save();
+    render();
+    alert("Added item to template.");
+  }
+
+  function logTemplate(templateId){
+    const tpl = state.templates.find(t => t.id === templateId);
+    if (!tpl) return;
+
+    const date = dateEl.value;
+    const entries = getEntries(date);
+
+    tpl.items.forEach(it => {
+      entries.push({
+        id: crypto.randomUUID(),
+        mealType: tpl.mealType,
+        name: it.name,
+        barcode: it.barcode || "",
+        cal: it.cal, pro: it.pro, carb: it.carb, fat: it.fat,
+        ts: Date.now()
+      });
+    });
+
+    setEntries(date, entries);
+    render();
+  }
+
+  function deleteTemplate(templateId){
+    state.templates = state.templates.filter(t => t.id !== templateId);
+    save();
+    render();
+  }
+
+  function clearTemplates(){
+    if (!confirm("Clear ALL templates?")) return;
+    state.templates = [];
+    save();
+    render();
+  }
+
+  function addEntryFromFields(){
+    const date = dateEl.value;
+    const entry = {
+      id: crypto.randomUUID(),
+      mealType: mealTypeEl.value,
+      name: String(nameEl.value ?? "").trim() || "Untitled",
+      barcode: String(barcodeEl.value ?? "").trim() || "",
+      cal: Number(calEl.value) || 0,
+      pro: Number(proEl.value) || 0,
+      carb: Number(carbEl.value) || 0,
+      fat: Number(fatEl.value) || 0,
+      ts: Date.now()
+    };
+
+    const entries = getEntries(date);
+    entries.push(entry);
+    setEntries(date, entries);
+
+    nameEl.value = "";
+    barcodeEl.value = "";
+    calEl.value = "";
+    proEl.value = "";
+    carbEl.value = "";
+    fatEl.value = "";
+
+    render();
+    nameEl.focus();
+  }
+
+  function deleteEntry(id){
+    const date = dateEl.value;
+    const entries = getEntries(date).filter(e => e.id !== id);
+    setEntries(date, entries);
+    render();
+  }
+
+  function duplicateEntry(id){
+    const date = dateEl.value;
+    const entries = getEntries(date);
+    const src = entries.find(e => e.id === id);
+    if (!src) return;
+    entries.push({ ...src, id: crypto.randomUUID(), ts: Date.now(), name: src.name + " (copy)" });
+    setEntries(date, entries);
+    render();
+  }
+
+  function clearDay(){
+    const date = dateEl.value;
+    if (!confirm(`Clear all entries for ${date}?`)) return;
+    delete state.entriesByDate[date];
+    save();
+    render();
+  }
+
+  function saveGoals(){
+    const gc = Number(goalCalEl.value);
+    const gp = Number(goalProEl.value);
+    const gcarb = Number(goalCarbEl.value);
+    const gfat = Number(goalFatEl.value);
+
+    if (!Number.isFinite(gc) || gc <= 0) return alert("Enter a valid calorie goal.");
+    if (!Number.isFinite(gp) || gp <= 0) return alert("Enter a valid protein goal.");
+    if (!Number.isFinite(gcarb) || gcarb < 0) return alert("Enter a valid carbs goal.");
+    if (!Number.isFinite(gfat) || gfat < 0) return alert("Enter a valid fat goal.");
+
+    state.settings.goalCal = Math.round(gc);
+    state.settings.goalPro = round1(gp);
+    state.settings.goalCarb = round1(gcarb);
+    state.settings.goalFat = round1(gfat);
+    save();
+    render();
+  }
+
+  function saveWeight(){
+    const date = dateEl.value;
+    const w = Number(weightEl.value);
+    const note = String(noteEl.value ?? "").trim();
+
+    if (weightEl.value !== "" && (!Number.isFinite(w) || w <= 0)){
+      return alert("Enter a valid weight, or clear the field.");
+    }
+
+    if (weightEl.value === "" && note === ""){
+      delete state.weightByDate[date];
+    } else {
+      state.weightByDate[date] = { weight: weightEl.value === "" ? "" : round1(w), note };
+    }
+    save();
+    render();
+  }
+
+  function exportJSON(){
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `calorie-tracker-backup-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importJSON(file){
+    const text = await file.text();
+    const parsed = safeParse(text, null);
+    if (!parsed || typeof parsed !== "object") return alert("Invalid JSON.");
+    if (!parsed.settings || !parsed.entriesByDate) return alert("This file doesn't look like a valid backup.");
+
+    state = parsed;
+    save();
+    goalCalEl.value = state.settings.goalCal ?? 1500;
+    goalProEl.value = state.settings.goalPro ?? 180;
+    goalCarbEl.value = state.settings.goalCarb ?? 150;
+    goalFatEl.value = state.settings.goalFat ?? 60;
+    render();
+  }
+
+  function wipeAll(){
+    if (!confirm("Wipe ALL data? This cannot be undone.")) return;
+    state = defaultState();
+    save();
+    goalCalEl.value = state.settings.goalCal;
+    goalProEl.value = state.settings.goalPro;
+    goalCarbEl.value = state.settings.goalCarb;
+    goalFatEl.value = state.settings.goalFat;
+    render();
+  }
+
+  function render(){
+    offlineStateEl.textContent = navigator.onLine ? "online" : "offline";
+
+    const date = dateEl.value;
+    const s = state.settings;
+
+    const todays = getDayTotals(todayISO());
+    topPills.innerHTML = [
+      pill("Goal:", `${s.goalCal}kcal • ${s.goalPro}P • ${s.goalCarb}C • ${s.goalFat}F`),
+      pill("Today:", `${todays.cal}kcal • ${todays.pro}P`)
+    ].join("");
+
+    const totals = getDayTotals(date);
+    const remCal = s.goalCal - totals.cal;
+
+    const calPct = computeCompliancePct(totals.cal, s.goalCal);
+    const proPct = computeCompliancePct(totals.pro, s.goalPro);
+    const carbPct = computeCompliancePct(totals.carb, s.goalCarb);
+    const fatPct = computeCompliancePct(totals.fat, s.goalFat);
+
+    const calScore = remCal >= 0 ? 100 : Math.max(0, 100 - Math.min(100, Math.round((Math.abs(remCal)/s.goalCal)*200)));
+    const overall = Math.round((calScore + proPct + carbPct + fatPct) / 4);
+
+    const remTone = remCal >= 250 ? "ok" : (remCal >= 0 ? "warn" : "bad");
+    const overallTone = overall >= 85 ? "ok" : (overall >= 70 ? "warn" : "bad");
+
+    dayPills.innerHTML = [
+      pill("Totals:", `${totals.cal}kcal • ${totals.pro}P • ${totals.carb}C • ${totals.fat}F`),
+      pill("Remaining kcal:", remCal, remTone),
+      pill("Compliance:", `${overall}%`, overallTone),
+      pill("Cal:", `${calPct}%`),
+      pill("P:", `${proPct}%`),
+      pill("C:", `${carbPct}%`),
+      pill("F:", `${fatPct}%`)
+    ].join("");
+
+    const entries = getEntries(date);
+    entriesBody.innerHTML = entries.map(e => `
+      <tr>
+        <td>${escapeHtml(e.mealType || "")}</td>
+        <td>${escapeHtml(e.name || "Untitled")}${e.barcode ? ` <span class="muted">(${escapeHtml(e.barcode)})</span>` : ""}</td>
+        <td class="right">${Math.round(Number(e.cal)||0)}</td>
+        <td class="right">${fmt1(e.pro)}</td>
+        <td class="right">${fmt1(e.carb)}</td>
+        <td class="right">${fmt1(e.fat)}</td>
+        <td class="right">
+          <button class="ghost" data-act="dup" data-id="${e.id}">Dup</button>
+          <button class="danger" data-act="del" data-id="${e.id}">Del</button>
+        </td>
+      </tr>
+    `).join("");
+    emptyMsg.style.display = entries.length ? "none" : "block";
+    $("entriesTable").style.display = entries.length ? "table" : "none";
+
+    const w = state.weightByDate[date];
+    if (w){
+      weightEl.value = w.weight ?? "";
+      noteEl.value = w.note ?? "";
+    } else {
+      if (!weightEl.value) weightEl.value = "";
+      if (!noteEl.value) noteEl.value = "";
+    }
+
+    templatePills.innerHTML = state.templates.length
+      ? state.templates.map(t => `
+          <span class="pill" style="cursor:pointer;" data-tpl="${t.id}">
+            ${escapeHtml(t.mealType)}: ${escapeHtml(t.name)} <strong>(${t.items.length} items)</strong>
+          </span>
+          <button class="danger" style="width:auto; padding:6px 10px; border-radius:999px;" data-tpldel="${t.id}">Delete</button>
+        `).join(" ")
+      : `<span class="small muted">No templates yet. Create one and add items.</span>`;
+
+    const barcodeKeys = Object.keys(state.barcodeItems);
+    barcodePills.innerHTML = barcodeKeys.length
+      ? barcodeKeys.slice(0, 18).map(code => {
+          const it = state.barcodeItems[code];
+          return `<span class="pill" style="cursor:pointer;" data-barcode="${escapeHtml(code)}">
+            ${escapeHtml(it.label)} <strong>${it.cal}kcal • ${it.pro}P</strong>
+          </span>`;
+        }).join("")
+      : `<span class="small muted">No barcode items saved yet.</span>`;
+
+    const days7 = lastNDays(7);
+    const totals7 = days7.map(d => getDayTotals(d));
+    const avgCal = Math.round(avg(totals7.map(t => t.cal)));
+    const avgPro = round1(avg(totals7.map(t => t.pro)));
+    const avgCarb = round1(avg(totals7.map(t => t.carb)));
+    const avgFat = round1(avg(totals7.map(t => t.fat)));
+
+    const wkCalPct = computeCompliancePct(avgCal, s.goalCal);
+    const wkProPct = computeCompliancePct(avgPro, s.goalPro);
+    const wkCarbPct = computeCompliancePct(avgCarb, s.goalCarb);
+    const wkFatPct = computeCompliancePct(avgFat, s.goalFat);
+
+    weeklyPills.innerHTML = [
+      pill("Avg kcal:", avgCal),
+      pill("Avg P:", `${avgPro}g`),
+      pill("Avg C:", `${avgCarb}g`),
+      pill("Avg F:", `${avgFat}g`),
+      pill("Avg compliance:", `${Math.round((wkCalPct+wkProPct+wkCarbPct+wkFatPct)/4)}%`)
+    ].join("");
+
+    const days30 = lastNDays(30);
+    const weights = days30.map(d => {
+      const v = state.weightByDate[d]?.weight;
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : NaN;
+    });
+    const ma7 = movingAverage(weights, 7);
+    const lastMA = ma7.filter(x => Number.isFinite(x)).slice(-1)[0];
+    rollingWeightEl.textContent = Number.isFinite(lastMA) ? `${round1(lastMA)} kg (7d MA)` : "—";
+
+    renderHistory(days30);
+    drawChart(days30);
+  }
+
+  function renderHistory(days){
+    const rows = days.map(d => {
+      const t = getDayTotals(d);
+      const w = state.weightByDate[d]?.weight ?? "";
+      const note = state.weightByDate[d]?.note ?? "";
+      return { date:d, ...t, weight:w, note };
+    });
+
+    historyBody.innerHTML = rows.map(r => `
+      <tr data-jump="${r.date}" style="cursor:pointer;">
+        <td>${r.date}</td>
+        <td class="right">${r.cal}</td>
+        <td class="right">${r.pro}</td>
+        <td class="right">${r.carb}</td>
+        <td class="right">${r.fat}</td>
+        <td class="right">${r.weight === "" ? "" : r.weight}</td>
+        <td>${escapeHtml(r.note || "")}</td>
+      </tr>
+    `).join("");
+  }
+
+  function drawChart(days){
+    ctx.clearRect(0,0,chart.width,chart.height);
+
+    const padL = 52, padR = 16, padT = 16, padB = 36;
+    const W = chart.width - padL - padR;
+    const H = chart.height - padT - padB;
+
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+    ctx.lineWidth = 1;
+    const gridLines = 4;
+    for (let i=0;i<=gridLines;i++){
+      const y = padT + (H * i / gridLines);
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + W, y); ctx.stroke();
+    }
+
+    const xFor = (i) => padL + (W * i / Math.max(days.length-1, 1));
+
+    const series = days.map(d => {
+      const t = getDayTotals(d);
+      const w = state.weightByDate[d]?.weight;
+      const wn = Number(w);
+      return {
+        cal: t.cal,
+        pro: t.pro,
+        carb: t.carb,
+        fat: t.fat,
+        weight: (Number.isFinite(wn) && wn > 0) ? wn : NaN
+      };
+    });
+
+    let label = "";
+    let values = [];
+    let maxY = 1;
+    let goalLine = null;
+
+    if (CHART.mode === "calories"){
+      label = "Calories (kcal)";
+      values = series.map(s => s.cal);
+      maxY = Math.max(state.settings.goalCal, ...values, 2000);
+      goalLine = state.settings.goalCal;
+    } else if (CHART.mode === "protein"){
+      label = "Protein (g)";
+      values = series.map(s => s.pro);
+      maxY = Math.max(state.settings.goalPro, ...values, 200);
+      goalLine = state.settings.goalPro;
+    } else if (CHART.mode === "macros"){
+      label = "Macros (g) — C / F / P";
+      maxY = Math.max(state.settings.goalCarb, state.settings.goalFat, state.settings.goalPro,
+                      ...series.map(s => Math.max(s.carb, s.fat, s.pro)), 200);
+    } else if (CHART.mode === "weight"){
+      label = "Weight (kg) + 7-day MA";
+      values = series.map(s => s.weight);
+      const finite = values.filter(v => Number.isFinite(v));
+      maxY = finite.length ? Math.max(...finite) : 120;
+    }
+
+    const yFor = (v) => padT + H - (H * v / maxY);
+
+    ctx.fillStyle = "rgba(255,255,255,0.70)";
+    ctx.font = "12px system-ui";
+    ctx.fillText(label, 10, padT + 12);
+
+    if (goalLine !== null){
+      ctx.setLineDash([6,6]);
+      ctx.strokeStyle = "rgba(79,140,255,0.55)";
+      ctx.beginPath();
+      ctx.moveTo(padL, yFor(goalLine));
+      ctx.lineTo(padL + W, yFor(goalLine));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawLine(vals, strokeStyle, width=2){
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      let started = false;
+      vals.forEach((v, i) => {
+        if (!Number.isFinite(v)) return;
+        const x = xFor(i), y = yFor(v);
+        if (!started){ ctx.moveTo(x,y); started = true; }
+        else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+    }
+
+    if (CHART.mode === "macros"){
+      drawLine(series.map(s=>s.carb), "rgba(255,255,255,0.85)", 2);
+      drawLine(series.map(s=>s.fat), "rgba(255,204,102,0.85)", 2);
+      drawLine(series.map(s=>s.pro), "rgba(57,217,138,0.85)", 2);
+
+      ctx.fillStyle = "rgba(255,255,255,0.80)";
+      ctx.fillText("Carbs", padL, padT + 28);
+      ctx.fillStyle = "rgba(255,204,102,0.90)";
+      ctx.fillText("Fat", padL + 60, padT + 28);
+      ctx.fillStyle = "rgba(57,217,138,0.90)";
+      ctx.fillText("Protein", padL + 100, padT + 28);
+    } else if (CHART.mode === "weight"){
+      const weights = series.map(s=>s.weight);
+      const ma = movingAverage(weights, 7);
+      drawLine(weights, "rgba(255,255,255,0.85)", 2);
+      drawLine(ma, "rgba(79,140,255,0.85)", 2);
+
+      ctx.fillStyle = "rgba(255,255,255,0.80)";
+      ctx.fillText("Weight", padL, padT + 28);
+      ctx.fillStyle = "rgba(79,140,255,0.90)";
+      ctx.fillText("7d MA", padL + 60, padT + 28);
+    } else {
+      drawLine(values, "rgba(255,255,255,0.85)", 2);
+      ctx.fillStyle = "rgba(255,255,255,0.80)";
+      ctx.fillText(CHART.mode === "protein" ? "Protein" : "Calories", padL, padT + 28);
+      if (goalLine !== null){
+        ctx.fillStyle = "rgba(79,140,255,0.90)";
+        ctx.fillText("Goal", padL + 70, padT + 28);
+      }
+    }
+  }
+
+  $("addBtn").addEventListener("click", addEntryFromFields);
+  $("clearDayBtn").addEventListener("click", clearDay);
+  $("saveGoalsBtn").addEventListener("click", saveGoals);
+  $("saveWeightBtn").addEventListener("click", saveWeight);
+
+  
+  // ----- Camera barcode scanner (best-effort) -----
+  const scanBtn = $("scanBarcodeBtn");
+  const scannerWrap = $("scannerWrap");
+  const scannerVideo = $("scannerVideo");
+  const scannerMsg = $("scannerMsg");
+  const stopScanBtn = $("stopScanBtn");
+
+  let scanStream = null;
+  let scanTimer = null;
+
+  function supportsBarcodeDetector(){
+    return ("BarcodeDetector" in window);
+  }
+
+  async function startScan(){
+    if (!supportsBarcodeDetector()){
+      alert("Camera barcode scanning isn't supported in this browser. You can still type the barcode manually.");
+      return;
+    }
+
+    scannerWrap.style.display = "block";
+    scannerMsg.textContent = "Starting camera…";
+
+    try{
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "environment",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+    } catch (err){
+      scannerMsg.textContent = "Camera permission denied or unavailable.";
+      alert("Couldn't access the camera. Check iPhone settings: Settings → Safari → Camera (Allow).");
+      scannerWrap.style.display = "none";
+      return;
+    }
+
+    scannerVideo.srcObject = scanStream;
+    await scannerVideo.play();
+
+    const detector = new BarcodeDetector({
+      formats: ["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"]
+    });
+
+    scannerMsg.textContent = "Point the camera at a barcode…";
+
+    async function tick(){
+      if (!scanStream) return;
+
+      try{
+        const barcodes = await detector.detect(scannerVideo);
+        if (barcodes && barcodes.length){
+          const code = String(barcodes[0].rawValue || "").trim();
+          if (code){
+            barcodeEl.value = code;
+
+            // Auto-lookup if saved
+            const it = lookupBarcode(code);
+            if (it) applyItemToFields(it);
+
+            scannerMsg.textContent = `Scanned: ${code}`;
+            stopScan();
+            return;
+          }
+        }
+      } catch {
+        // keep trying
+      }
+
+      scanTimer = requestAnimationFrame(tick);
+    }
+
+    scanTimer = requestAnimationFrame(tick);
+  }
+
+  function stopScan(){
+    if (scanTimer){
+      cancelAnimationFrame(scanTimer);
+      scanTimer = null;
+    }
+    if (scanStream){
+      scanStream.getTracks().forEach(t => t.stop());
+      scanStream = null;
+    }
+    scannerVideo.srcObject = null;
+    scannerWrap.style.display = "none";
+  }
+
+  if (scanBtn) scanBtn.addEventListener("click", startScan);
+  if (stopScanBtn) stopScanBtn.addEventListener("click", stopScan);
+
+$("lookupBarcodeBtn").addEventListener("click", () => {
+    const code = String(barcodeEl.value ?? "").trim();
+    if (!code) return alert("Enter a barcode first.");
+    const it = lookupBarcode(code);
+    if (!it) return alert("No item saved for that barcode yet.");
+    applyItemToFields(it);
+  });
+
+  $("saveBarcodeBtn").addEventListener("click", saveBarcodeItem);
+
+  $("createTemplateBtn").addEventListener("click", createEmptyTemplate);
+  $("addToTemplateBtn").addEventListener("click", addCurrentItemToTemplate);
+  $("clearTemplatesBtn").addEventListener("click", clearTemplates);
+
+  entriesBody.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const id = btn.getAttribute("data-id");
+    const act = btn.getAttribute("data-act");
+    if (act === "del") deleteEntry(id);
+    if (act === "dup") duplicateEntry(id);
+  });
+
+  templatePills.addEventListener("click", (e) => {
+    const log = e.target.closest("[data-tpl]");
+    const del = e.target.closest("[data-tpldel]");
+    if (del){
+      deleteTemplate(del.getAttribute("data-tpldel"));
+      return;
+    }
+    if (!log) return;
+    const id = log.getAttribute("data-tpl");
+    logTemplate(id);
+  });
+
+  barcodePills.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-barcode]");
+    if (!b) return;
+    const code = b.getAttribute("data-barcode");
+    barcodeEl.value = code;
+    const it = lookupBarcode(code);
+    if (it) applyItemToFields(it);
+  });
+
+  historyBody.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-jump]");
+    if (!tr) return;
+    const d = tr.getAttribute("data-jump");
+    dateEl.value = d;
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  dateEl.addEventListener("change", render);
+
+  function setActive(btnId){
+    ["viewCaloriesBtn","viewProteinBtn","viewMacrosBtn","viewWeightBtn"].forEach(id => {
+      $(id).classList.toggle("active", id === btnId);
+    });
+  }
+  $("viewCaloriesBtn").addEventListener("click", () => { CHART.mode="calories"; setActive("viewCaloriesBtn"); render(); });
+  $("viewProteinBtn").addEventListener("click", () => { CHART.mode="protein"; setActive("viewProteinBtn"); render(); });
+  $("viewMacrosBtn").addEventListener("click", () => { CHART.mode="macros"; setActive("viewMacrosBtn"); render(); });
+  $("viewWeightBtn").addEventListener("click", () => { CHART.mode="weight"; setActive("viewWeightBtn"); render(); });
+
+  $("exportBtn").addEventListener("click", exportJSON);
+  $("wipeAllBtn").addEventListener("click", wipeAll);
+  $("importFile").addEventListener("change", async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    await importJSON(f);
+    e.target.value = "";
+  });
+
+  window.addEventListener("online", render);
+  window.addEventListener("offline", render);
+
+  let bcTimer = null;
+  barcodeEl.addEventListener("input", () => {
+    clearTimeout(bcTimer);
+    bcTimer = setTimeout(() => {
+      const code = String(barcodeEl.value ?? "").trim();
+      if (!code) return;
+      const it = lookupBarcode(code);
+      if (it) applyItemToFields(it);
+    }, 250);
+  });
+
+  if ("serviceWorker" in navigator){
+    window.addEventListener("load", async () => {
+      try { await navigator.serviceWorker.register("./sw.js"); } catch {}
+    });
+  }
+
+  dateEl.value = todayISO();
+  goalCalEl.value = state.settings.goalCal;
+  goalProEl.value = state.settings.goalPro;
+  goalCarbEl.value = state.settings.goalCarb;
+  goalFatEl.value = state.settings.goalFat;
+
+  render();
+})();
+</script>
+</body>
+</html>
